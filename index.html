@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Planejador Financeiro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#080c10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Financeiro">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#080c10;--s1:#0f1520;--s2:#162030;--s3:#1e2d40;--s4:#243550;
+  --dim:#2a4060;--muted:#5a7a9a;--text:#d8e8f8;
+  --green:#28c87a;--gbg:#04200e;--gbr:#0a4020;
+  --blue:#38b4f8;--bbg:#021830;--bbr:#083060;
+  --yellow:#f0c040;--ybg:#201400;--ybr:#402800;
+  --red:#f05050;--rbg:#200808;--rbr:#401010;
+  --purple:#a878f8;--pbg:#180c30;--pbr:#301860;
+  --nav-h:64px;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif}
+.app{background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav-h)+8px)}
+.topbar{padding:1.1rem 1rem .7rem;border-bottom:1px solid var(--s3);background:var(--bg);position:sticky;top:0;z-index:10}
+.topbar-row{display:flex;align-items:center;gap:10px}
+.topbar h2{font-size:1.05rem;font-weight:700}
+.topbar p{font-size:.7rem;color:var(--muted);margin-top:2px}
+.back-btn{background:none;border:none;color:var(--blue);font-size:1.4rem;cursor:pointer;padding:0;line-height:1;min-width:28px}
+.card{background:var(--s1);border:1px solid var(--s3);border-radius:var(--radius);margin:.6rem .8rem;overflow:hidden}
+.card-hdr{padding:9px 14px;border-bottom:1px solid var(--s3);display:flex;align-items:center;gap:8px}
+.card-ttl{font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.card-body{padding:12px 14px}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 .8rem;margin:.8rem 0}
+.metric{background:var(--s1);border:1px solid var(--s3);border-radius:10px;padding:11px 13px}
+.metric-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px}
+.metric-val{font-size:1.05rem;font-weight:700;font-family:monospace}
+.row-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--s3);gap:10px}
+.row-item:last-child{border:none}
+.row-item-l{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.row-item-n{font-size:.88rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-item-s{font-size:.67rem;color:var(--muted)}
+.row-item-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.row-item-v{font-size:.88rem;font-weight:600;font-family:monospace}
+.rm-btn{background:none;border:none;color:var(--muted);font-size:.68rem;cursor:pointer;font-family:inherit;padding:2px 0}
+.month-row{display:flex;align-items:center;gap:10px;padding:11px .8rem;border-bottom:1px solid var(--s3);cursor:pointer;border-left:3px solid transparent;transition:background .1s}
+.month-row:active{background:var(--s2)}
+.month-lbl{font-size:.85rem;font-weight:600;min-width:58px}
+.month-mid{flex:1}
+.bar-track{height:3px;background:var(--dim);border-radius:2px;overflow:hidden;margin-bottom:3px}
+.bar-fill{height:100%;border-radius:2px}
+.bar-labels{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted)}
+.month-r{text-align:right;flex-shrink:0}
+.month-surp{font-size:.8rem;font-weight:700;font-family:monospace}
+.month-bank{font-size:.68rem;font-family:monospace}
+.detail-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--s3);font-size:.82rem;gap:8px}
+.detail-row:last-child{border:none}
+.detail-l{display:flex;align-items:center;gap:8px;color:var(--muted);flex:1;min-width:0}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.detail-v{font-family:monospace;font-weight:600;font-size:.84rem;flex-shrink:0}
+.detail-total{display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--s4)}
+.alert{padding:9px 13px;border-radius:8px;font-size:.78rem;line-height:1.65;border:1px solid;margin:.5rem .8rem}
+.alert strong{font-weight:600}
+.alert-ok{background:var(--gbg);border-color:var(--gbr);color:#30d880}
+.alert-warn{background:var(--ybg);border-color:var(--ybr);color:#d0a830}
+.alert-bad{background:var(--rbg);border-color:var(--rbr);color:#e06060}
+.alert-info{background:var(--bbg);border-color:var(--bbr);color:#40a0d0}
+.btn{background:var(--blue);color:#040810;border:none;border-radius:8px;padding:11px 18px;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;display:block;width:100%;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-o{background:transparent;color:var(--blue);border:1px solid var(--bbr)}
+.btn-sm{width:auto;padding:7px 13px;font-size:.76rem}
+.inp-grp{margin-bottom:11px}
+.inp-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:block;margin-bottom:4px;font-weight:600}
+.inp{background:var(--s2);border:1px solid var(--s3);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.88rem;font-family:inherit;width:100%;outline:none;transition:border-color .15s}
+.inp:focus{border-color:var(--blue)}
+select.inp{appearance:none;cursor:pointer}
+.inp-row{display:flex;gap:8px}
+.inp-row .inp-grp{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.chip{padding:4px 9px;border-radius:16px;font-size:.68rem;font-weight:600;cursor:pointer;border:1px solid var(--s3);background:var(--s1);color:var(--muted);transition:all .12s;user-select:none}
+.chip.on{background:var(--bbg);border-color:var(--bbr);color:var(--blue)}
+.chip.skip-on{background:var(--ybg);border-color:var(--ybr);color:var(--yellow)}
+.chip.pay-on{background:var(--gbg);border-color:var(--gbr);color:var(--green)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:flex;align-items:flex-end}
+.modal{background:var(--s1);border-radius:16px 16px 0 0;padding:1.3rem 1rem 1.6rem;width:100%;max-height:90vh;overflow-y:auto;border-top:1px solid var(--s3)}
+.modal-ttl{font-size:1rem;font-weight:700;margin-bottom:1rem}
+.nav{position:absolute;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--s1);border-top:1px solid var(--s3);display:flex;z-index:50}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--dim);font-size:.55rem;font-weight:700;cursor:pointer;transition:color .15s;font-family:inherit;text-transform:uppercase;letter-spacing:.04em}
+.nav-btn.on{color:var(--blue)}
+.nav-icon{font-size:1.3rem;line-height:1}
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h))}
+.chat-msgs{flex:1;overflow-y:auto;padding:1rem .8rem;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:88%;padding:9px 13px;border-radius:12px;font-size:.82rem;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.bubble-ai{background:var(--s1);border:1px solid var(--s3);align-self:flex-start;border-radius:2px 12px 12px 12px}
+.bubble-user{background:var(--bbg);border:1px solid var(--bbr);color:var(--blue);align-self:flex-end;border-radius:12px 12px 2px 12px}
+.chat-footer{padding:8px .8rem .6rem;border-top:1px solid var(--s3);display:flex;gap:8px;align-items:center}
+.chat-inp{flex:1;background:var(--s2);border:1px solid var(--s3);border-radius:20px;padding:9px 14px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;transition:border-color .15s}
+.chat-inp:focus{border-color:var(--blue)}
+.send-btn{background:var(--blue);border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:1rem}
+.send-btn:disabled{opacity:.4;cursor:default}
+.bank-bar-track{height:5px;background:var(--dim);border-radius:3px;overflow:hidden;margin:.4rem .8rem .8rem}
+.bank-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .5s}
+.section-lbl{padding:.8rem .8rem .3rem;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--dim)}
+.empty-icon{font-size:2rem;margin-bottom:.5rem}
+.empty p{font-size:.83rem;margin-bottom:1rem;color:var(--muted)}
+.add-row{padding:8px 12px}
+.dots span{animation:blink 1.2s infinite;display:inline-block}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.seg{display:flex;background:var(--s2);border-radius:8px;padding:3px;gap:3px;margin-bottom:11px}
+.seg-btn{flex:1;padding:7px;border:none;border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);font-family:inherit;transition:all .15s}
+.seg-btn.on{background:var(--blue);color:#040810}
+.hint{font-size:.68rem;color:var(--muted);margin-top:4px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="screen" id="mainScreen"></div>
+  <nav class="nav" id="mainNav"></nav>
+  <div id="modalWrap"></div>
+</div>
+
+<script>
+const MN=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const now=new Date(), SM=now.getMonth(), SY=now.getFullYear();
+
+// ── Gemini API Key ────────────────────────────────────────────────────────────
+// Obtenha sua chave grátis em: https://aistudio.google.com/app/apikey
+const GEMINI_KEY = localStorage.getItem('gemini_key') || '';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let S = loadState();
+
+function defaultState(){
+  return {
+    tab:'dash', bank:0, incomes:[], bills:[], sim:[], selMonth:null,
+    messages:[{role:'ai',text:'👋 Olá! Sou seu assistente financeiro.\n\nVá em ⚙️ Config e cadastre:\n• Suas fontes de renda\n• Seus gastos e dívidas\n• Quanto tem no banco\n\nDepois me pergunte qualquer coisa! 💪'}],
+    aiLoading:false
+  };
+}
+
+function loadState(){
+  try {
+    const saved = localStorage.getItem('finapp_v3');
+    if(saved){
+      const d = JSON.parse(saved);
+      return {...defaultState(), bank:d.bank||0, incomes:d.incomes||[], bills:d.bills||[], messages:d.messages||defaultState().messages};
+    }
+  } catch(e){}
+  return defaultState();
+}
+
+function saveState(){
+  try {
+    localStorage.setItem('finapp_v3', JSON.stringify({bank:S.bank, incomes:S.incomes, bills:S.bills, messages:S.messages.slice(-30)}));
+  } catch(e){}
+}
+
+// ── Simulation ───────────────────────────────────────────────────────────────
+function monthLabel(m){ const i=(SM+m-1)%12, y=SY+Math.floor((SM+m-1)/12); return MN[i]+'/'+String(y).slice(2); }
+function calMonth(m){ return ((SM+m-1)%12)+1; }
+
+function incActive(inc, m){
+  const cm = calMonth(m);
+  const f = inc.freq;
+  if(f==='monthly') return true;
+  if(f==='odd') return cm%2===1;
+  if(f==='even') return cm%2===0;
+  if(f==='bimonthly') return (m-1)%2===0;
+  if(f==='quarterly') return (m-1)%3===0;
+  if(f==='specific') return (inc.months||[]).includes(cm);
+  return false;
+}
+
+function billActive(bill, m){
+  const cm = calMonth(m);
+  if(bill.type==='installment'){
+    // startMonth = índice da simulação (1-based) quando a parcela foi cadastrada.
+    // Se não existir (bills antigos), assume que foi cadastrado antes do mês 1.
+    const start = bill.startMonth || 0;
+    const elapsed = m - start; // quantos meses se passaram desde o cadastro
+    if(elapsed < 1) return false;           // ainda não começou
+    if(elapsed > bill.remaining) return false; // já terminou
+  }
+  if(bill.monthMode==='skip') return !(bill.months||[]).includes(cm);
+  if(bill.monthMode==='only') return (bill.months||[]).includes(cm);
+  return true; // fixed
+}
+
+function runSim(){
+  let bank = S.bank;
+  S.sim = Array.from({length:24}, function(_,i){
+    const m = i+1;
+    const ai = S.incomes.filter(function(x){ return incActive(x,m); });
+    const ab = S.bills.filter(function(x){ return billActive(x,m); });
+    const ti = ai.reduce(function(s,x){ return s+x.amount; }, 0);
+    const tb = ab.reduce(function(s,x){ return s+x.amount; }, 0);
+    bank = Math.round((bank+ti-tb)*100)/100;
+    return {m:m, label:monthLabel(m), ti:ti, tb:tb, surplus:ti-tb, bank:bank, ai:ai, ab:ab};
+  });
+}
+
+function fmt(v, sh){
+  const a = Math.abs(v);
+  let s;
+  if(sh && a>=1000) s='R$'+(a/1000).toFixed(1)+'k';
+  else s='R$ '+a.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return v<0?'−'+s:s;
+}
+
+function freqLbl(f){
+  return {monthly:'Todo mês',odd:'Meses ímpares',even:'Meses pares',bimonthly:'A cada 2 meses',quarterly:'A cada 3 meses',specific:'Meses específicos'}[f]||f;
+}
+
+function bankColor(v){ return v<0?'var(--red)':v<500?'var(--yellow)':'var(--green)'; }
+function surpColor(v){ return v>=0?'var(--green)':'var(--red)'; }
+
+function buildCtx(){
+  if(!S.sim.length) return 'Sem dados configurados ainda.';
+  const neg   = S.sim.filter(function(m){ return m.bank<0; }).length;
+  const minB  = Math.min.apply(null, S.sim.map(function(m){ return m.bank; }));
+  const minM  = S.sim.find(function(m){ return m.bank===minB; });
+  const endB  = S.sim[23].bank;
+  const avgInc= S.sim.reduce(function(s,m){ return s+m.ti; },0)/24;
+  const avgExp= S.sim.reduce(function(s,m){ return s+m.tb; },0)/24;
+
+  // Lista compacta de rendas e despesas (sem detalhar simulação mês a mês)
+  const rendas   = S.incomes.map(function(i){ return i.name+' R$'+i.amount+' '+freqLbl(i.freq); }).join('; ') || 'nenhuma';
+  const despesas = S.bills.map(function(b){
+    return b.name+' R$'+b.amount+(b.type==='installment'?' ('+b.remaining+'x)':' fixo');
+  }).join('; ') || 'nenhuma';
+
+  // Apenas meses críticos (negativos ou pior saldo)
+  const criticos = S.sim.filter(function(m){ return m.bank<0; }).map(function(m){
+    return m.label+' R$'+m.bank.toFixed(0);
+  }).join(', ') || 'nenhum';
+
+  return [
+    'BANCO ATUAL: R$'+S.bank.toFixed(2),
+    'RENDA MEDIA/MES: R$'+avgInc.toFixed(0),
+    'DESPESA MEDIA/MES: R$'+avgExp.toFixed(0),
+    'SALDO EM 24 MESES: R$'+endB.toFixed(0),
+    'PIOR SALDO: R$'+minB.toFixed(0)+' em '+(minM?minM.label:'?'),
+    'MESES NEGATIVOS: '+neg,
+    neg>0?'CRITICOS: '+criticos:'',
+    'RENDAS: '+rendas,
+    'DESPESAS: '+despesas
+  ].filter(Boolean).join('\n');
+}
+
+// ── Render helpers ───────────────────────────────────────────────────────────
+function h(tag, attrs, ...children){
+  const el = document.createElement(tag);
+  if(attrs) Object.entries(attrs).forEach(function([k,v]){
+    if(k==='cls') el.className=v;
+    else if(k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else el.setAttribute(k,v);
+  });
+  children.forEach(function(c){
+    if(c===null||c===undefined) return;
+    if(typeof c==='string') el.appendChild(document.createTextNode(c));
+    else if(c instanceof Node) el.appendChild(c);
+  });
+  return el;
+}
+function div(cls,...ch){ return h('div',{cls},...ch); }
+function span(cls,...ch){ return h('span',{cls},...ch); }
+function btn(cls,txt,onClick){ return h('button',{cls,onClick:onClick||function(){}},txt); }
+function p(cls,txt){ return h('p',{cls},txt); }
+function inp(id,type,placeholder,value,cls){
+  return h('input',{id,type:type||'text',placeholder:placeholder||'',value:value||'',cls:cls||'inp'});
+}
+function sel(id,options,value){
+  const s=h('select',{id,cls:'inp'});
+  options.forEach(function([v,l]){
+    const o=document.createElement('option');
+    o.value=v; o.textContent=l; if(v===value)o.selected=true;
+    s.appendChild(o);
+  });
+  return s;
+}
+
+// ── Nav ──────────────────────────────────────────────────────────────────────
+function renderNav(){
+  const tabs=[{id:'dash',ic:'🏠',lb:'Dashboard'},{id:'months',ic:'📅',lb:'Meses'},{id:'ai',ic:'🤖',lb:'IA'},{id:'cfg',ic:'⚙️',lb:'Config'}];
+  const nav = document.getElementById('mainNav');
+  nav.innerHTML='';
+  tabs.forEach(function(t){
+    const b = h('button',{cls:'nav-btn'+(S.tab===t.id?' on':'')},
+      span('nav-icon',t.ic), h('span',null,t.lb));
+    b.addEventListener('click',function(){ S.tab=t.id; if(S.tab==='months') S.selMonth=null; render(); });
+    nav.appendChild(b);
+  });
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+function renderDash(){
+  const scr = document.getElementById('mainScreen');
+  scr.innerHTML='';
+  runSim();
+
+  const tb = div('topbar'); tb.innerHTML='<h2>💰 Planejador Financeiro</h2><p>Simulação dos próximos 24 meses</p>'; scr.appendChild(tb);
+
+  if(!S.sim.length){ const e=div('empty'); e.innerHTML='<div class="empty-icon">📋</div><p>Configure seus dados para ver a simulação</p>'; scr.appendChild(e); return; }
+
+  const minB = Math.min.apply(null, S.sim.map(function(m){ return m.bank; }));
+  const endB = S.sim[S.sim.length-1].bank;
+  const neg = S.sim.filter(function(m){ return m.bank<0; }).length;
+
+  if(neg===0){
+    const a=div('alert alert-ok'); a.innerHTML='✅ <strong>Plano viável!</strong> Banco nunca fica negativo nos próximos 24 meses.'; scr.appendChild(a);
+  } else {
+    const a=div('alert alert-bad'); a.innerHTML='⚠️ <strong>'+neg+' '+(neg===1?'mês':'meses')+' com banco negativo.</strong> Pergunte à IA como resolver.'; scr.appendChild(a);
+  }
+
+  const mg = div('metric-grid');
+  [{lb:'Banco hoje',v:S.bank,c:'var(--blue)'},{lb:'Banco mínimo',v:minB,c:bankColor(minB)},{lb:'Em 24 meses',v:endB,c:bankColor(endB)},{lb:'Meses negativos',v:neg,c:neg>0?'var(--red)':'var(--green)',raw:true}].forEach(function(m){
+    const mc=div('metric');
+    mc.innerHTML='<div class="metric-lbl">'+m.lb+'</div><div class="metric-val" style="color:'+m.c+'">'+(m.raw?m.v:fmt(m.v,true))+'</div>';
+    mg.appendChild(mc);
+  });
+  scr.appendChild(mg);
+
+  const maxBank = Math.max(endB, S.bank, 1);
+  const bt = div('bank-bar-track'); const bf = div('bank-bar-fill'); bf.style.width=Math.min(100,Math.max(4,(S.bank/maxBank)*100))+'%'; bt.appendChild(bf); scr.appendChild(bt);
+
+  const sl = div('section-lbl'); sl.textContent='Próximos 6 meses — toque para detalhes'; scr.appendChild(sl);
+
+  S.sim.slice(0,6).forEach(function(m){
+    const mx = Math.max(m.ti, m.tb, 1);
+    const color = m.bank<0?'var(--red)':m.surplus>=0?'var(--green)':'var(--yellow)';
+    const row = div('month-row');
+    row.style.borderLeftColor = color;
+    row.innerHTML = '<div class="month-lbl">'+m.label+'</div><div class="month-mid"><div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,(m.ti/mx)*100)+'%;background:var(--green)"></div></div><div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,(m.tb/mx)*100)+'%;background:var(--red)"></div></div><div class="bar-labels"><span>'+fmt(m.ti,true)+'</span><span>'+fmt(m.tb,true)+'</span></div></div><div class="month-r"><div class="month-surp" style="color:'+surpColor(m.surplus)+'">'+(m.surplus>=0?'+':'')+fmt(m.surplus,true)+'</div><div class="month-bank" style="color:'+bankColor(m.bank)+'">'+fmt(m.bank,true)+'</div></div>';
+    row.addEventListener('click',function(){ S.selMonth=m.m; S.tab='months'; render(); scr.scrollTop=0; });
+    scr.appendChild(row);
+  });
+}
+
+// ── Months list ──────────────────────────────────────────────────────────────
+function renderMonthsList(){
+  const scr = document.getElementById('mainScreen');
+  scr.innerHTML='';
+  const tb=div('topbar'); tb.innerHTML='<h2>📅 Todos os Meses</h2><p>Toque para ver o detalhamento completo</p>'; scr.appendChild(tb);
+  if(!S.sim.length){ const e=div('empty'); e.innerHTML='<div class="empty-icon">📅</div><p>Configure seus dados primeiro</p>'; scr.appendChild(e); return; }
+  S.sim.forEach(function(m){
+    const color=m.bank<0?'var(--red)':m.surplus>=0?'var(--green)':'var(--yellow)';
+    const row=div('month-row');
+    row.style.borderLeftColor=color;
+    row.innerHTML='<div class="month-lbl">'+m.label+'</div><div class="month-mid"><div style="font-size:.72rem;color:var(--muted)">'+fmt(m.ti,true)+' ↑ &nbsp; '+fmt(m.tb,true)+' ↓</div></div><div class="month-r"><div class="month-surp" style="color:'+surpColor(m.surplus)+';font-size:.78rem">'+(m.surplus>=0?'+':'')+fmt(m.surplus,true)+'</div><div class="month-bank" style="color:'+bankColor(m.bank)+'">'+fmt(m.bank,true)+'</div></div>';
+    row.addEventListener('click',function(){ S.selMonth=m.m; render(); scr.scrollTop=0; });
+    scr.appendChild(row);
+  });
+}
+
+// ── Month detail ─────────────────────────────────────────────────────────────
+function renderMonthDetail(){
+  const scr = document.getElementById('mainScreen');
+  scr.innerHTML='';
+  const m = S.sim.filter(function(x){ return x.m===S.selMonth; })[0];
+  if(!m) return;
+
+  const tb=div('topbar');
+  const row=div('topbar-row');
+  const back=h('button',{cls:'back-btn'},'←');
+  back.addEventListener('click',function(){ S.selMonth=null; render(); });
+  const info=div(null); info.innerHTML='<h2>'+m.label+'</h2><p>Detalhamento completo</p>';
+  row.appendChild(back); row.appendChild(info); tb.appendChild(row); scr.appendChild(tb);
+
+  const alertEl=div(m.bank<0?'alert alert-bad':m.surplus<0?'alert alert-warn':'alert alert-ok');
+  if(m.bank<0) alertEl.innerHTML='⚠️ <strong>Banco negativo!</strong> Faltam '+fmt(Math.abs(m.bank))+' extras neste mês.';
+  else if(m.surplus<0) alertEl.innerHTML='⚠️ Renda não cobre tudo. Banco absorve '+fmt(Math.abs(m.surplus))+'.';
+  else alertEl.innerHTML='✅ Mês positivo! Sobram '+fmt(m.surplus)+' para o banco.';
+  scr.appendChild(alertEl);
+
+  const mg=div('metric-grid');
+  [{lb:'Entra',v:m.ti,c:'var(--green)'},{lb:'Sai',v:m.tb,c:'var(--red)'},{lb:'Saldo',v:m.surplus,c:surpColor(m.surplus),sign:true},{lb:'Banco final',v:m.bank,c:bankColor(m.bank)}].forEach(function(x){
+    const mc=div('metric'); mc.innerHTML='<div class="metric-lbl">'+x.lb+'</div><div class="metric-val" style="color:'+x.c+'">'+(x.sign&&m.surplus>=0?'+':'')+fmt(x.v)+'</div>'; mg.appendChild(mc);
+  });
+  scr.appendChild(mg);
+
+  // Income card
+  const ic=div('card');
+  ic.innerHTML='<div class="card-hdr"><span>💰</span><span class="card-ttl">O que entra este mês</span></div>';
+  const ib=div('card-body');
+  if(!m.ai.length) ib.innerHTML='<p style="color:var(--muted);font-size:.83rem">Nenhuma renda ativa</p>';
+  else {
+    m.ai.forEach(function(i){ const dr=div('detail-row'); dr.innerHTML='<div class="detail-l"><div class="dot" style="background:var(--green)"></div><span>'+i.name+'</span></div><span class="detail-v" style="color:var(--green)">'+fmt(i.amount)+'</span>'; ib.appendChild(dr); });
+    const dt=div('detail-total'); dt.innerHTML='<span style="font-size:.78rem;font-weight:600">Total</span><span style="font-family:monospace;font-weight:700;color:var(--green)">'+fmt(m.ti)+'</span>'; ib.appendChild(dt);
+  }
+  ic.appendChild(ib); scr.appendChild(ic);
+
+  // Bills card
+  const bc=div('card');
+  bc.innerHTML='<div class="card-hdr"><span>📋</span><span class="card-ttl">O que pagar este mês</span></div>';
+  const bb=div('card-body');
+  if(!m.ab.length) bb.innerHTML='<p style="color:var(--muted);font-size:.83rem">Nenhuma despesa ativa</p>';
+  else {
+    m.ab.forEach(function(b){
+      const dr=div('detail-row');
+      let info_txt = '';
+      if(b.type==='installment'){
+        const start = b.startMonth || 0;
+        const parcelaAtual = m.m - start; // qual parcela é esta no contexto da dívida
+        info_txt = 'parcela '+parcelaAtual+' de '+b.remaining;
+      }
+      dr.innerHTML='<div class="detail-l"><div class="dot" style="background:var(--red)"></div><div><div>'+b.name+'</div>'+(info_txt?'<div style="font-size:.62rem;color:var(--dim)">'+info_txt+'</div>':'')+'</div></div><span class="detail-v" style="color:var(--red)">'+fmt(b.amount)+'</span>';
+      bb.appendChild(dr);
+    });
+    const dt=div('detail-total'); dt.innerHTML='<span style="font-size:.78rem;font-weight:600">Total</span><span style="font-family:monospace;font-weight:700;color:var(--red)">'+fmt(m.tb)+'</span>'; bb.appendChild(dt);
+  }
+  bc.appendChild(bb); scr.appendChild(bc);
+
+  const aiBtn=btn('btn btn-o btn-sm','🤖 Perguntar à IA sobre este mês',function(){
+    const txt='Me dê conselhos sobre o mês '+m.label+': renda R$'+m.ti.toFixed(0)+', despesas R$'+m.tb.toFixed(0)+', banco vai para R$'+m.bank.toFixed(0);
+    S.tab='ai'; S.messages.push({role:'user',text:txt}); render(); sendChat(txt);
+  });
+  const abtnWrap=div(null); abtnWrap.style.padding='.6rem .8rem'; abtnWrap.appendChild(aiBtn); scr.appendChild(abtnWrap);
+}
+
+// ── AI ───────────────────────────────────────────────────────────────────────
+function renderAI(){
+  const scr = document.getElementById('mainScreen');
+
+  // Se a tela de chat já está montada, apenas atualiza as mensagens (sem flash)
+  let msgs = scr.querySelector('.chat-msgs');
+  if(msgs){
+    _patchChatMsgs(msgs);
+    const sb = scr.querySelector('.send-btn');
+    if(sb) sb.disabled = S.aiLoading;
+    setTimeout(function(){ msgs.scrollTop=msgs.scrollHeight; },30);
+    return;
+  }
+
+  // Primeira montagem
+  scr.innerHTML='';
+  const wrap=div('chat-wrap');
+
+  const tb=div('topbar'); tb.innerHTML='<h2>🤖 Assistente IA</h2><p>Conselheiro financeiro pessoal</p>'; wrap.appendChild(tb);
+
+  // ── Aviso de API key ──────────────────────────────────────────────────────
+  const keyWarn=div('alert alert-warn');
+  keyWarn.style.cssText='margin:.5rem .8rem;font-size:.72rem';
+  const hasKey=!!localStorage.getItem('gemini_key');
+  keyWarn.innerHTML=hasKey
+    ? '✅ <strong>Gemini conectado.</strong> Configure a key em ⚙️ se precisar trocar.'
+    : '🔑 <strong>API Key não configurada.</strong> Vá em ⚙️ Configurações e cole sua chave do <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> (grátis).';
+  wrap.appendChild(keyWarn);
+
+  msgs=div('chat-msgs');
+  _patchChatMsgs(msgs);
+  wrap.appendChild(msgs);
+
+  const footer=div('chat-footer');
+  const ci=h('input',{cls:'chat-inp',placeholder:'Pergunte sobre suas finanças...',type:'text'});
+  ci.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); const t=ci.value.trim(); if(t&&!S.aiLoading){ ci.value=''; S.messages.push({role:'user',text:t}); _patchChatMsgs(msgs); msgs.scrollTop=msgs.scrollHeight; sendChat(t); } } });
+  const sb=h('button',{cls:'send-btn'},'➤');
+  sb.disabled=S.aiLoading;
+  sb.addEventListener('click',function(){ const t=ci.value.trim(); if(t&&!S.aiLoading){ ci.value=''; S.messages.push({role:'user',text:t}); _patchChatMsgs(msgs); msgs.scrollTop=msgs.scrollHeight; sendChat(t); } });
+  footer.appendChild(ci); footer.appendChild(sb); wrap.appendChild(footer);
+
+  scr.appendChild(wrap);
+  setTimeout(function(){ msgs.scrollTop=msgs.scrollHeight; ci.focus(); },50);
+}
+
+// Atualiza somente as mensagens do chat sem recriar o DOM inteiro
+function _patchChatMsgs(msgs){
+  // Sincroniza: remove bolhas a mais, adiciona que faltam
+  const existing = msgs.querySelectorAll('.bubble');
+  const total = S.messages.length + (S.aiLoading?1:0);
+
+  // Remove bolhas excedentes (ex: loading foi substituído por resposta)
+  while(msgs.querySelectorAll('.bubble').length > S.messages.length + (S.aiLoading?1:0)){
+    const last = msgs.querySelector('.bubble:last-child');
+    if(last) msgs.removeChild(last);
+  }
+
+  // Garante que cada mensagem do estado tem uma bolha correspondente
+  S.messages.forEach(function(m, i){
+    let b = msgs.querySelectorAll('.bubble')[i];
+    if(!b){
+      b=div('bubble bubble-'+(m.role==='user'?'user':'ai'));
+      b.textContent=m.text; msgs.appendChild(b);
+    }
+  });
+
+  // Bolha de loading
+  const hasLoading = !!msgs.querySelector('.bubble-loading');
+  if(S.aiLoading && !hasLoading){
+    const lb=div('bubble bubble-ai bubble-loading');
+    lb.innerHTML='<span class="dots"><span>•</span><span>•</span><span>•</span></span>';
+    msgs.appendChild(lb);
+  } else if(!S.aiLoading && hasLoading){
+    msgs.querySelector('.bubble-loading').remove();
+  }
+}
+
+async function sendChat(txt){
+  S.aiLoading=true;
+  // Atualiza só o estado visual — sem recriar a tela inteira
+  const scr=document.getElementById('mainScreen');
+  const msgs=scr.querySelector('.chat-msgs');
+  if(msgs){ _patchChatMsgs(msgs); msgs.scrollTop=msgs.scrollHeight; }
+  const sb=scr.querySelector('.send-btn'); if(sb) sb.disabled=true;
+
+  try{
+    const key = localStorage.getItem('gemini_key') || GEMINI_KEY;
+    if(!key){ S.messages.push({role:'ai',text:'⚙️ Configure sua Gemini API Key nas configurações para usar o assistente.'}); S.aiLoading=false; saveState(); if(msgs){_patchChatMsgs(msgs);msgs.scrollTop=msgs.scrollHeight;} const sbF=scr.querySelector('.send-btn'); if(sbF) sbF.disabled=false; return; }
+
+    // Monta histórico no formato Gemini (contents: [{role,parts:[{text}]}])
+    const contents = S.messages
+      .filter(function(m){ return m.role==='user'||m.role==='ai'; })
+      .map(function(m){ return {role:m.role==='user'?'user':'model', parts:[{text:m.text}]}; });
+    // Gemini exige que o primeiro item seja 'user' e que alternem
+    const cleanContents=[];
+    contents.forEach(function(c){
+      if(cleanContents.length===0 && c.role==='model') return;
+      if(cleanContents.length>0 && cleanContents[cleanContents.length-1].role===c.role) return;
+      cleanContents.push(c);
+    });
+    if(!cleanContents.length || cleanContents[cleanContents.length-1].role!=='user') return;
+
+    const systemPrompt='Assistente financeiro pessoal brasileiro. Direto, empático, prático. Responda em até 5 linhas. Use R$ para valores. Não repita dados já sabidos.\n\n'+buildCtx();
+
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        system_instruction:{parts:[{text:systemPrompt}]},
+        contents:cleanContents,
+        generationConfig:{maxOutputTokens:350,temperature:0.7}
+      })
+    });
+    const data=await res.json();
+    const reply=(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'Desculpe, tente novamente.';
+    S.messages.push({role:'ai',text:reply});
+  } catch(e){
+    S.messages.push({role:'ai',text:'⚠️ Erro de conexão. Verifique a internet e tente novamente.'});
+  }
+  S.aiLoading=false;
+  saveState();
+  // Patch final sem flash
+  if(msgs){ _patchChatMsgs(msgs); msgs.scrollTop=msgs.scrollHeight; }
+  const sbFinal=scr.querySelector('.send-btn'); if(sbFinal) sbFinal.disabled=false;
+}
+
+// ── Config ───────────────────────────────────────────────────────────────────
+function renderCfg(){
+  const scr=document.getElementById('mainScreen');
+  scr.innerHTML='';
+  const tb=div('topbar'); tb.innerHTML='<h2>⚙️ Configurações</h2><p>Seus dados são salvos automaticamente</p>'; scr.appendChild(tb);
+
+  // Bank input - use a stable input that doesn't re-render the whole page
+  const sl1=div('section-lbl'); sl1.textContent='Dinheiro guardado / banco hoje'; scr.appendChild(sl1);
+  const bankWrap=div(null); bankWrap.style.padding='0 .8rem .4rem';
+  const bankInp=h('input',{cls:'inp',type:'number',placeholder:'Ex: 4000.00',id:'bankInp'});
+  bankInp.value=S.bank||'';
+  bankInp.addEventListener('change',function(){
+    S.bank=parseFloat(this.value)||0;
+    saveState(); runSim();
+    updateDashMetrics();
+  });
+  bankWrap.appendChild(bankInp); scr.appendChild(bankWrap);
+
+  // Incomes
+  const sl2=div('section-lbl'); sl2.textContent='Fontes de renda'; scr.appendChild(sl2);
+  const incCard=div('card'); incCard.style.marginTop='0';
+  if(!S.incomes.length){
+    const e=div(null); e.style.cssText='padding:.9rem;color:var(--muted);font-size:.82rem;text-align:center'; e.textContent='Nenhuma renda configurada ainda'; incCard.appendChild(e);
+  } else {
+    S.incomes.forEach(function(inc){
+      const row=div('row-item');
+      let subtitle=freqLbl(inc.freq);
+      if(inc.months&&inc.months.length) subtitle+=' ('+inc.months.map(function(m){return MN[m-1];}).join('/')+')';
+      row.innerHTML='<div class="row-item-l"><div class="row-item-n">'+inc.name+'</div><div class="row-item-s">'+subtitle+'</div></div><div class="row-item-r"><div class="row-item-v" style="color:var(--green)">'+fmt(inc.amount,true)+'</div></div>';
+      const rmb=btn('rm-btn','✕ remover',function(){ S.incomes=S.incomes.filter(function(x){return x.id!==inc.id;}); saveState(); runSim(); renderCfg(); });
+      row.querySelector('.row-item-r').appendChild(rmb);
+      incCard.appendChild(row);
+    });
+  }
+  const addIncRow=div('add-row');
+  const addIncBtn=btn('btn btn-o btn-sm','+ Adicionar renda',function(){ showIncomeModal(); });
+  addIncRow.appendChild(addIncBtn); incCard.appendChild(addIncRow);
+  scr.appendChild(incCard);
+
+  // Bills
+  const sl3=div('section-lbl'); sl3.textContent='Despesas e dívidas'; scr.appendChild(sl3);
+  const billCard=div('card'); billCard.style.marginTop='0';
+  if(!S.bills.length){
+    const e=div(null); e.style.cssText='padding:.9rem;color:var(--muted);font-size:.82rem;text-align:center'; e.textContent='Nenhuma despesa configurada ainda'; billCard.appendChild(e);
+  } else {
+    S.bills.forEach(function(bill){
+      const row=div('row-item');
+      let subtitle=bill.type==='installment'?bill.remaining+'x restantes':'Fixo mensal';
+      if(bill.months&&bill.months.length){
+        const mNames=bill.months.map(function(m){return MN[m-1];}).join('/');
+        subtitle+=bill.monthMode==='skip'?' · sem '+mNames:' · só em '+mNames;
+      }
+      row.innerHTML='<div class="row-item-l"><div class="row-item-n">'+bill.name+'</div><div class="row-item-s">'+subtitle+'</div></div><div class="row-item-r"><div class="row-item-v" style="color:var(--red)">'+fmt(bill.amount,true)+'</div></div>';
+      const rmb=btn('rm-btn','✕ remover',function(){ S.bills=S.bills.filter(function(x){return x.id!==bill.id;}); saveState(); runSim(); renderCfg(); });
+      row.querySelector('.row-item-r').appendChild(rmb);
+      billCard.appendChild(row);
+    });
+  }
+  const addBillRow=div('add-row');
+  const addBillBtn=btn('btn btn-o btn-sm','+ Adicionar despesa/dívida',function(){ showBillModal(); });
+  addBillRow.appendChild(addBillBtn); billCard.appendChild(addBillRow);
+  scr.appendChild(billCard);
+
+  // ── Gemini API Key ────────────────────────────────────────────────────────
+  const slGem=div('section-lbl'); slGem.textContent='🤖 Assistente IA (Gemini)'; scr.appendChild(slGem);
+  const gemCard=div('card'); gemCard.style.marginTop='0';
+  const gemInner=div(null); gemInner.style.padding='.8rem';
+  const gemLbl=h('label',{cls:'inp-lbl'},'Gemini API Key');
+  const gemHint=div('hint'); gemHint.innerHTML='Grátis em <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a> · Fica salvo só no seu aparelho';
+  const gemInp=h('input',{cls:'inp',type:'password',placeholder:'Cole sua key aqui...'});
+  gemInp.value=localStorage.getItem('gemini_key')||'';
+  const gemRow=div(null); gemRow.style.cssText='display:flex;gap:8px;margin-top:.5rem';
+  const gemSave=btn('btn btn-sm','Salvar Key',function(){
+    const k=gemInp.value.trim();
+    if(k){ localStorage.setItem('gemini_key',k); alert('✅ Key salva!'); }
+    else { localStorage.removeItem('gemini_key'); alert('Key removida.'); }
+  });
+  const gemClear=btn('btn btn-o btn-sm','Remover',function(){
+    localStorage.removeItem('gemini_key'); gemInp.value=''; alert('Key removida.');
+  });
+  gemRow.appendChild(gemSave); gemRow.appendChild(gemClear);
+  gemInner.appendChild(gemLbl); gemInner.appendChild(gemHint); gemInner.appendChild(gemInp); gemInner.appendChild(gemRow);
+  gemCard.appendChild(gemInner); scr.appendChild(gemCard);
+
+  const clearWrap=div(null); clearWrap.style.padding='.8rem .8rem 0';
+  const clearBtn=btn('btn btn-o btn-sm','🗑 Limpar todos os dados',function(){
+    if(confirm('Tem certeza? Apaga tudo que foi configurado.')){
+      S=defaultState(); localStorage.removeItem('finapp_v3'); render();
+    }
+  });
+  clearWrap.appendChild(clearBtn); scr.appendChild(clearWrap);
+  const sp=div(null); sp.style.height='.5rem'; scr.appendChild(sp);
+}
+
+function updateDashMetrics(){
+  // lightweight update without full re-render
+  if(S.tab==='dash') renderDash();
+}
+
+// ── Income Modal ─────────────────────────────────────────────────────────────
+function showIncomeModal(){
+  const wrap=document.getElementById('modalWrap');
+  wrap.innerHTML='';
+
+  // State local ao modal - sem re-render global!
+  let mState={name:'',amount:'',freq:'monthly',months:[]};
+
+  const overlay=div('overlay');
+  const modal=div('modal');
+  modal.addEventListener('click',function(e){e.stopPropagation();});
+  overlay.addEventListener('click',function(){ wrap.innerHTML=''; });
+
+  const ttl=div('modal-ttl'); ttl.textContent='➕ Nova Fonte de Renda'; modal.appendChild(ttl);
+
+  // IMPORTANTE: campos ficam estáticos, só a seção de meses muda
+  const nameGrp=div('inp-grp');
+  const nameLbl=h('label',{cls:'inp-lbl'},'Nome da renda');
+  const nameInp=h('input',{cls:'inp',type:'text',placeholder:'Ex: Salário, Bônus, Freelance...'});
+  nameGrp.appendChild(nameLbl); nameGrp.appendChild(nameInp); modal.appendChild(nameGrp);
+
+  const amtGrp=div('inp-grp');
+  const amtLbl=h('label',{cls:'inp-lbl'},'Valor (R$)');
+  const amtInp=h('input',{cls:'inp',type:'number',placeholder:'0,00'});
+  amtGrp.appendChild(amtLbl); amtGrp.appendChild(amtInp); modal.appendChild(amtGrp);
+
+  const freqGrp=div('inp-grp');
+  const freqLblEl=h('label',{cls:'inp-lbl'},'Com que frequência recebe?');
+  const freqSel=sel('niFreq',[
+    ['monthly','Todo mês'],['odd','Meses ímpares (Jan, Mar, Mai...)'],
+    ['even','Meses pares (Fev, Abr, Jun...)'],['bimonthly','A cada 2 meses'],
+    ['quarterly','A cada 3 meses'],['specific','Meses específicos']
+  ],'monthly');
+  freqGrp.appendChild(freqLblEl); freqGrp.appendChild(freqSel); modal.appendChild(freqGrp);
+
+  // Área de meses específicos (aparece/some sem re-render)
+  const monthsSection=div(null);
+  modal.appendChild(monthsSection);
+
+  function updateMonthsSection(){
+    monthsSection.innerHTML='';
+    if(freqSel.value==='specific'){
+      const mg=div('inp-grp');
+      const ml=h('label',{cls:'inp-lbl'},'Em quais meses recebe?');
+      const chips=div('chips');
+      MN.forEach(function(mn,i){
+        const m=i+1;
+        const c=div('chip'+(mState.months.includes(m)?' on':'')); c.textContent=mn;
+        c.addEventListener('click',function(){
+          if(mState.months.includes(m)) mState.months=mState.months.filter(function(x){return x!==m;});
+          else mState.months.push(m);
+          updateMonthsSection();
+        });
+        chips.appendChild(c);
+      });
+      mg.appendChild(ml); mg.appendChild(chips); monthsSection.appendChild(mg);
+    }
+  }
+  freqSel.addEventListener('change',function(){ mState.months=[]; updateMonthsSection(); });
+  updateMonthsSection();
+
+  const btnRow=div(null); btnRow.style.cssText='display:flex;gap:8px;margin-top:1rem';
+  const cancelB=btn('btn btn-o','Cancelar',function(){ wrap.innerHTML=''; });
+  const saveB=btn('btn','Adicionar ✓',function(){
+    const n=nameInp.value.trim();
+    const a=parseFloat(amtInp.value);
+    if(!n||!a){alert('Preencha o nome e o valor!');return;}
+    S.incomes.push({id:String(Date.now()),name:n,amount:a,freq:freqSel.value,months:mState.months.slice()});
+    saveState(); wrap.innerHTML=''; runSim(); renderCfg();
+  });
+  btnRow.appendChild(cancelB); btnRow.appendChild(saveB); modal.appendChild(btnRow);
+  overlay.appendChild(modal); wrap.appendChild(overlay);
+}
+
+// ── Bill Modal ───────────────────────────────────────────────────────────────
+function showBillModal(){
+  const wrap=document.getElementById('modalWrap');
+  wrap.innerHTML='';
+
+  let mState={type:'fixed',monthMode:'none',months:[]};
+
+  const overlay=div('overlay');
+  const modal=div('modal');
+  modal.addEventListener('click',function(e){e.stopPropagation();});
+  overlay.addEventListener('click',function(){ wrap.innerHTML=''; });
+
+  const ttl=div('modal-ttl'); ttl.textContent='➕ Nova Despesa / Dívida'; modal.appendChild(ttl);
+
+  const nameGrp=div('inp-grp');
+  nameGrp.innerHTML='<label class="inp-lbl">Nome</label>';
+  const nameInp=h('input',{cls:'inp',type:'text',placeholder:'Ex: Aluguel, Empréstimo, Parcelado...'});
+  nameGrp.appendChild(nameInp); modal.appendChild(nameGrp);
+
+  const r1=div('inp-row');
+  const amtGrp=div('inp-grp');
+  amtGrp.innerHTML='<label class="inp-lbl">Valor/mês (R$)</label>';
+  const amtInp=h('input',{cls:'inp',type:'number',placeholder:'0,00'});
+  amtGrp.appendChild(amtInp); r1.appendChild(amtGrp);
+
+  // Tipo: segmented control
+  const typeGrp=div('inp-grp');
+  typeGrp.innerHTML='<label class="inp-lbl">Tipo</label>';
+  const typeSeg=div('seg');
+  const tFixed=h('button',{cls:'seg-btn on'},'Fixo'); tFixed.type='button';
+  const tInst=h('button',{cls:'seg-btn'},'Parcelado'); tInst.type='button';
+  typeSeg.appendChild(tFixed); typeSeg.appendChild(tInst); typeGrp.appendChild(typeSeg); r1.appendChild(typeGrp);
+  modal.appendChild(r1);
+
+  // Parcelas (aparece só se parcelado)
+  const remSection=div(null); modal.appendChild(remSection);
+
+  function updateRemSection(){
+    remSection.innerHTML='';
+    if(mState.type==='installment'){
+      const rg=div('inp-grp');
+      rg.innerHTML='<label class="inp-lbl">Quantas parcelas ainda faltam?</label>';
+      const ri=h('input',{cls:'inp',type:'number',placeholder:'Ex: 12',id:'nbRem'});
+      ri.min='1'; rg.appendChild(ri); remSection.appendChild(rg);
+    }
+  }
+
+  tFixed.addEventListener('click',function(){ mState.type='fixed'; tFixed.classList.add('on'); tInst.classList.remove('on'); updateRemSection(); });
+  tInst.addEventListener('click',function(){ mState.type='installment'; tInst.classList.add('on'); tFixed.classList.remove('on'); updateRemSection(); });
+  updateRemSection();
+
+  // ── A partir de qual mês começa a pagar? ─────────────────────────────────
+  const startGrp=div('inp-grp');
+  startGrp.innerHTML='<label class="inp-lbl">Começa a pagar em qual mês?</label>';
+  const startOpts=[['0','Este mês ('+MN[SM]+'/'+String(SY).slice(2)+')']];
+  for(let i=1;i<12;i++){
+    const mi=(SM+i)%12, yi=SY+Math.floor((SM+i)/12);
+    startOpts.push([String(i), MN[mi]+'/'+String(yi).slice(2)]);
+  }
+  const startSel=sel('billStart', startOpts, '0');
+  startGrp.appendChild(startSel);
+  modal.appendChild(startGrp);
+
+  // Meses especiais
+  const modeGrp=div('inp-grp');
+  modeGrp.innerHTML='<label class="inp-lbl">Tem exceções de meses?</label>';
+  const modeSeg=div('seg');
+  const mNone=h('button',{cls:'seg-btn on'},'Não'); mNone.type='button';
+  const mSkip=h('button',{cls:'seg-btn'},'Pular meses'); mSkip.type='button';
+  const mOnly=h('button',{cls:'seg-btn'},'Só nestes meses'); mOnly.type='button';
+  modeSeg.appendChild(mNone); modeSeg.appendChild(mSkip); modeSeg.appendChild(mOnly);
+  modeGrp.appendChild(modeSeg); modal.appendChild(modeGrp);
+
+  const monthsSection=div(null); modal.appendChild(monthsSection);
+
+  function setModeBtn(active){
+    [mNone,mSkip,mOnly].forEach(function(b){b.classList.remove('on');});
+    active.classList.add('on');
+  }
+
+  function updateMonthsSection(){
+    monthsSection.innerHTML='';
+    if(mState.monthMode==='none') return;
+    const mg=div('inp-grp');
+    const isSkip=mState.monthMode==='skip';
+    const ml=h('label',{cls:'inp-lbl'},isSkip?'Não paga em quais meses?':'Paga SOMENTE em quais meses?');
+    const hint=div('hint'); hint.textContent=isSkip?'Ex: van que não paga no verão':'Ex: parcela que só vence em meses específicos';
+    const chips=div('chips');
+    MN.forEach(function(mn,i){
+      const m=i+1;
+      const isOn=mState.months.includes(m);
+      const c=div('chip'+(isOn?(isSkip?' skip-on':' pay-on'):'')); c.textContent=mn;
+      c.addEventListener('click',function(){
+        if(mState.months.includes(m)) mState.months=mState.months.filter(function(x){return x!==m;});
+        else mState.months.push(m);
+        updateMonthsSection();
+      });
+      chips.appendChild(c);
+    });
+    mg.appendChild(ml); mg.appendChild(hint); mg.appendChild(chips); monthsSection.appendChild(mg);
+  }
+
+  mNone.addEventListener('click',function(){ mState.monthMode='none'; mState.months=[]; setModeBtn(mNone); updateMonthsSection(); });
+  mSkip.addEventListener('click',function(){ mState.monthMode='skip'; mState.months=[]; setModeBtn(mSkip); updateMonthsSection(); });
+  mOnly.addEventListener('click',function(){ mState.monthMode='only'; mState.months=[]; setModeBtn(mOnly); updateMonthsSection(); });
+
+  const btnRow=div(null); btnRow.style.cssText='display:flex;gap:8px;margin-top:1rem';
+  const cancelB=btn('btn btn-o','Cancelar',function(){ wrap.innerHTML=''; });
+  const saveB=btn('btn','Adicionar ✓',function(){
+    const n=nameInp.value.trim();
+    const a=parseFloat(amtInp.value);
+    const r=mState.type==='installment'?parseInt(document.getElementById('nbRem')?.value)||12:999;
+    const startMonth=parseInt(document.getElementById('billStart')?.value)||0;
+    if(!n||!a){alert('Preencha o nome e o valor!');return;}
+    // startMonth = índice de offset: 0=este mês, 1=próximo, etc.
+    S.bills.push({id:String(Date.now()),name:n,amount:a,type:mState.type,remaining:r,startMonth:startMonth,monthMode:mState.monthMode,months:mState.months.slice()});
+    saveState(); wrap.innerHTML=''; runSim(); renderCfg();
+  });
+  btnRow.appendChild(cancelB); btnRow.appendChild(saveB); modal.appendChild(btnRow);
+  overlay.appendChild(modal); wrap.appendChild(overlay);
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render(){
+  runSim();
+  renderNav();
+  if(S.tab==='dash') renderDash();
+  else if(S.tab==='months') S.selMonth ? renderMonthDetail() : renderMonthsList();
+  else if(S.tab==='ai') renderAI();
+  else if(S.tab==='cfg') renderCfg();
+}
+
+render();
+
+// ── PWA: registra service worker ─────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+
+</script>
+</body>
+</html>
