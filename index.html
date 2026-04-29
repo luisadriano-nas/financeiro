@@ -531,11 +531,19 @@ function _patchChatMsgs(msgs){
 }
 
 async function sendChat(txt){
+  // Garante que a aba da IA está ativa ANTES de qualquer coisa
+  S.tab='ai';
   S.aiLoading=true;
+
+  // Monta a tela se não estiver visível
+  const scrEl=document.getElementById('mainScreen');
+  if(!scrEl.querySelector('.chat-msgs')) renderAI();
+
   function getMsgs(){ return document.querySelector('.chat-msgs'); }
   const m0=getMsgs();
   if(m0){ _patchChatMsgs(m0); m0.scrollTop=m0.scrollHeight; }
   const sb0=document.querySelector('.send-btn'); if(sb0) sb0.disabled=true;
+  renderNav(); // atualiza nav pra mostrar aba correta
 
   try{
     const key = localStorage.getItem('gemini_key') || GEMINI_KEY;
@@ -558,7 +566,7 @@ async function sendChat(txt){
     });
     if(!cleanContents.length || cleanContents[cleanContents.length-1].role!=='user') return;
 
-    const systemPrompt='Assistente financeiro pessoal brasileiro. Direto, empático, prático. Responda em até 5 linhas. Use R$ para valores. Não repita dados já sabidos.\n\n'+buildCtx();
+    const systemPrompt='Assistente financeiro pessoal brasileiro. Direto, empático, prático. Responda em até 8 linhas. Use R$ para valores. Não repita dados já sabidos.\n\n'+buildCtx();
 
     const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
       method:'POST',
@@ -579,11 +587,11 @@ async function sendChat(txt){
   } catch(e){
     S.messages.push({role:'ai',text:'⚠️ Erro: '+(e.message||'Verifique sua conexão e tente novamente.')});
   }
+
   S.aiLoading=false;
   saveState();
-  // Se a tela de chat não estiver visível, navega de volta pra ela mostrar a resposta
-  if(S.tab!=='ai'){ S.tab='ai'; render(); return; }
-  // Re-busca o elemento (pode ter sido recriado se o usuário trocou de aba)
+
+  // Sempre patcha direto — nunca chama render() aqui
   const mf=getMsgs();
   if(mf){ _patchChatMsgs(mf); mf.scrollTop=mf.scrollHeight; }
   const sbf=document.querySelector('.send-btn'); if(sbf) sbf.disabled=false;
