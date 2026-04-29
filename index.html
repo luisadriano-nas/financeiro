@@ -529,7 +529,7 @@ async function sendChat(txt){
 
     const systemPrompt='Assistente financeiro pessoal brasileiro. Direto, empático, prático. Responda em até 5 linhas. Use R$ para valores. Não repita dados já sabidos.\n\n'+buildCtx();
 
-    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key,{
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+key,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -539,10 +539,15 @@ async function sendChat(txt){
       })
     });
     const data=await res.json();
-    const reply=(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'Desculpe, tente novamente.';
-    S.messages.push({role:'ai',text:reply});
+    // Se a API retornou erro, mostra a mensagem real
+    if(data.error){
+      S.messages.push({role:'ai',text:'⚠️ Erro da API: '+data.error.message});
+    } else {
+      const reply=(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'Sem resposta da IA.';
+      S.messages.push({role:'ai',text:reply});
+    }
   } catch(e){
-    S.messages.push({role:'ai',text:'⚠️ Erro de conexão. Verifique a internet e tente novamente.'});
+    S.messages.push({role:'ai',text:'⚠️ Erro: '+(e.message||'Verifique sua conexão e tente novamente.')});
   }
   S.aiLoading=false;
   saveState();
