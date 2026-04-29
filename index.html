@@ -300,6 +300,17 @@ function renderNav(){
   });
 }
 
+// ── Cálculo de gasto seguro (sem IA) ─────────────────────────────────────────
+function calcSpendable(){
+  if(!S.sim.length) return 0;
+  // Pega o menor saldo dos próximos 3 meses como referência de segurança
+  const future = S.sim.slice(0, 3).map(function(m){ return m.bank; });
+  const minFuture = Math.min.apply(null, future);
+  const buffer = 300; // reserva mínima de segurança
+  const safe = Math.min(S.bank, minFuture) - buffer;
+  return Math.max(0, safe);
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────────────
 function renderDash(){
   const scr = document.getElementById('mainScreen');
@@ -318,6 +329,23 @@ function renderDash(){
     const a=div('alert alert-ok'); a.innerHTML='✅ <strong>Plano viável!</strong> Banco nunca fica negativo nos próximos 24 meses.'; scr.appendChild(a);
   } else {
     const a=div('alert alert-bad'); a.innerHTML='⚠️ <strong>'+neg+' '+(neg===1?'mês':'meses')+' com banco negativo.</strong> Pergunte à IA como resolver.'; scr.appendChild(a);
+  }
+
+  // ── Card "quanto posso gastar hoje" ─────────────────────────────────────
+  const spendable = calcSpendable();
+  const sc = div('card'); sc.style.margin='.5rem .8rem';
+  const spColor = spendable>500?'var(--green)':spendable>0?'var(--yellow)':'var(--red)';
+  const spMsg = spendable>500 ? 'Você tá tranquilo 👍' : spendable>0 ? 'Atenção com os gastos ⚠️' : 'Evite gastos agora 🚨';
+  sc.innerHTML='<div style="padding:.7rem .9rem"><div style="font-size:.72rem;color:var(--muted);margin-bottom:.2rem">POSSO GASTAR HOJE</div><div style="font-size:1.4rem;font-weight:700;color:'+spColor+'">'+fmt(spendable,true)+'</div><div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">'+spMsg+' · considerando despesas futuras</div></div>';
+  sc.addEventListener('click', function(){ S.tab='ai'; render(); setTimeout(function(){ const ci=document.querySelector('.chat-inp'); if(ci){ ci.value='Quanto posso gastar hoje com segurança?'; ci.focus(); } },100); });
+  scr.appendChild(sc);
+
+  // ── Próximo mês crítico ──────────────────────────────────────────────────
+  const nextNeg = S.sim.find(function(m){ return m.bank<0; });
+  if(nextNeg){
+    const wa=div('alert'); wa.style.cssText='background:rgba(255,160,0,.08);border:1px solid rgba(255,160,0,.3);border-radius:10px;margin:.4rem .8rem;padding:.6rem .8rem;font-size:.78rem;color:var(--yellow)';
+    wa.innerHTML='📉 Saldo negativo previsto em <strong>'+nextNeg.label+'</strong> (R$'+nextNeg.bank.toFixed(0)+')';
+    scr.appendChild(wa);
   }
 
   const mg = div('metric-grid');
@@ -504,21 +532,24 @@ function _patchChatMsgs(msgs){
 
 async function sendChat(txt){
   S.aiLoading=true;
-  // Atualiza só o estado visual — sem recriar a tela inteira
-  const scr=document.getElementById('mainScreen');
-  const msgs=scr.querySelector('.chat-msgs');
-  if(msgs){ _patchChatMsgs(msgs); msgs.scrollTop=msgs.scrollHeight; }
-  const sb=scr.querySelector('.send-btn'); if(sb) sb.disabled=true;
+  function getMsgs(){ return document.querySelector('.chat-msgs'); }
+  const m0=getMsgs();
+  if(m0){ _patchChatMsgs(m0); m0.scrollTop=m0.scrollHeight; }
+  const sb0=document.querySelector('.send-btn'); if(sb0) sb0.disabled=true;
 
   try{
     const key = localStorage.getItem('gemini_key') || GEMINI_KEY;
-    if(!key){ S.messages.push({role:'ai',text:'⚙️ Configure sua Gemini API Key nas configurações para usar o assistente.'}); S.aiLoading=false; saveState(); if(msgs){_patchChatMsgs(msgs);msgs.scrollTop=msgs.scrollHeight;} const sbF=scr.querySelector('.send-btn'); if(sbF) sbF.disabled=false; return; }
+    if(!key){
+      S.messages.push({role:'ai',text:'⚙️ Configure sua Gemini API Key nas configurações para usar o assistente.'});
+      S.aiLoading=false; saveState();
+      const mx=getMsgs(); if(mx){_patchChatMsgs(mx);mx.scrollTop=mx.scrollHeight;}
+      const sbx=document.querySelector('.send-btn'); if(sbx) sbx.disabled=false;
+      return;
+    }
 
-    // Monta histórico no formato Gemini (contents: [{role,parts:[{text}]}])
     const contents = S.messages
       .filter(function(m){ return m.role==='user'||m.role==='ai'; })
       .map(function(m){ return {role:m.role==='user'?'user':'model', parts:[{text:m.text}]}; });
-    // Gemini exige que o primeiro item seja 'user' e que alternem
     const cleanContents=[];
     contents.forEach(function(c){
       if(cleanContents.length===0 && c.role==='model') return;
@@ -535,11 +566,10 @@ async function sendChat(txt){
       body:JSON.stringify({
         system_instruction:{parts:[{text:systemPrompt}]},
         contents:cleanContents,
-        generationConfig:{maxOutputTokens:350,temperature:0.7}
+        generationConfig:{maxOutputTokens:800,temperature:0.7}
       })
     });
     const data=await res.json();
-    // Se a API retornou erro, mostra a mensagem real
     if(data.error){
       S.messages.push({role:'ai',text:'⚠️ Erro da API: '+data.error.message});
     } else {
@@ -551,9 +581,12 @@ async function sendChat(txt){
   }
   S.aiLoading=false;
   saveState();
-  // Patch final sem flash
-  if(msgs){ _patchChatMsgs(msgs); msgs.scrollTop=msgs.scrollHeight; }
-  const sbFinal=scr.querySelector('.send-btn'); if(sbFinal) sbFinal.disabled=false;
+  // Se a tela de chat não estiver visível, navega de volta pra ela mostrar a resposta
+  if(S.tab!=='ai'){ S.tab='ai'; render(); return; }
+  // Re-busca o elemento (pode ter sido recriado se o usuário trocou de aba)
+  const mf=getMsgs();
+  if(mf){ _patchChatMsgs(mf); mf.scrollTop=mf.scrollHeight; }
+  const sbf=document.querySelector('.send-btn'); if(sbf) sbf.disabled=false;
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -863,10 +896,46 @@ function render(){
 
 render();
 
-// ── PWA: registra service worker ─────────────────────────────────────────────
+// ── Swipe para trocar de aba ──────────────────────────────────────────────────
+(function(){
+  const TABS = ['dash','months','ai','cfg'];
+  let tx=0, ty=0;
+  document.addEventListener('touchstart', function(e){
+    tx=e.touches[0].clientX; ty=e.touches[0].clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    const dx=e.changedTouches[0].clientX-tx;
+    const dy=e.changedTouches[0].clientY-ty;
+    // Só swipe horizontal, mínimo 60px, mais horizontal que vertical
+    if(Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.5) return;
+    // Não faz swipe se vier de dentro de um modal
+    if(document.querySelector('.overlay')) return;
+    const idx=TABS.indexOf(S.tab);
+    if(dx<0 && idx<TABS.length-1){ S.tab=TABS[idx+1]; if(S.tab==='months') S.selMonth=null; render(); }
+    if(dx>0 && idx>0){ S.tab=TABS[idx-1]; if(S.tab==='months') S.selMonth=null; render(); }
+  }, {passive:true});
+})();
+
+// ── PWA: registra service worker e força atualização ─────────────────────────
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      // Verifica se há nova versão disponível e ativa imediatamente
+      reg.addEventListener('updatefound', function(){
+        const nw = reg.installing;
+        nw.addEventListener('statechange', function(){
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            nw.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+      // Recarrega quando o novo SW assumir o controle
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        window.location.reload();
+      });
+      // Força checagem de atualização a cada abertura
+      reg.update();
+    }).catch(function(){});
   });
 }
 
