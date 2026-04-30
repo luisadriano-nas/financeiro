@@ -797,7 +797,7 @@ function renderMonthDetail(){
         body:JSON.stringify({
           system_instruction:{parts:[{text:'Assistente financeiro pessoal brasileiro. Direto e prático. Use R$.'}]},
           contents:[{role:'user',parts:[{text:prompt}]}],
-          generationConfig:{maxOutputTokens:300,temperature:0.7}
+          generationConfig:{maxOutputTokens:600,temperature:0.7}
         })
       }).then(function(r){ return r.json(); }).then(function(data){
         const tip=(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'';
