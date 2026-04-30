@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Planejador Financeiro</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#080c10">
@@ -23,13 +23,14 @@
   --red:#f05050;--red-soft:rgba(240,80,80,.12);--rbg:#200808;--rbr:#401010;
   --purple:#a878f8;--pbg:#180c30;--pbr:#301860;
   --nav-h:64px;--radius:14px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   --transition: .18s cubic-bezier(.4,0,.2,1);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif}
 .app{background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
 /* Transição de tela */
-.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav-h)+8px);animation:fadeIn .2s ease}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 32px);animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .topbar{padding:1.1rem 1rem .7rem;border-bottom:1px solid var(--s3);background:var(--bg);position:sticky;top:0;z-index:10}
 .topbar-row{display:flex;align-items:center;gap:10px}
@@ -99,13 +100,13 @@ select.inp{appearance:none;cursor:pointer}
 .modal{background:var(--s1);border-radius:18px 18px 0 0;padding:1.3rem 1rem 1.6rem;width:100%;max-height:90vh;overflow-y:auto;border-top:1px solid var(--s3)}
 .modal-ttl{font-size:1rem;font-weight:700;margin-bottom:1rem}
 /* Nav com indicador ativo melhorado */
-.nav{position:absolute;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--s1);border-top:1px solid var(--s3);display:flex;z-index:50}
+.nav{position:absolute;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--safe-bottom));padding-bottom:var(--safe-bottom);background:var(--s1);border-top:1px solid var(--s3);display:flex;z-index:50}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--dim);font-size:.55rem;font-weight:700;cursor:pointer;transition:color var(--transition);font-family:inherit;text-transform:uppercase;letter-spacing:.04em;position:relative}
 .nav-btn.on{color:var(--blue)}
 .nav-btn.on::after{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--blue);border-radius:0 0 2px 2px}
 .nav-icon{font-size:1.3rem;line-height:1}
 /* Chat melhorado */
-.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h))}
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h) - var(--safe-bottom))}
 .chat-msgs{flex:1;overflow-y:auto;padding:1rem .8rem;display:flex;flex-direction:column;gap:12px}
 .bubble{max-width:85%;padding:10px 14px;border-radius:16px;font-size:.83rem;line-height:1.75;white-space:pre-wrap;word-break:break-word;animation:bubbleIn .2s ease}
 @keyframes bubbleIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -758,24 +759,43 @@ function renderMonthDetail(){
   const tipsKey='tips_'+m.m+'_'+m.calY;
   const cached=S.tipsCache&&S.tipsCache[tipsKey];
 
+  // Container separado pra o texto — nunca mexe no botão
+  const tipsTxt=div(null);
+  tipsBody.appendChild(tipsTxt);
+
+  const regenBtn=btn('btn btn-o btn-sm','🔄 Gerar novas dicas',function(){
+    if(S.tipsCache) delete S.tipsCache[tipsKey];
+    saveState(); renderMonthDetail();
+  });
+  regenBtn.style.marginTop='.8rem';
+  tipsBody.appendChild(regenBtn);
+
+  function showTip(txt){
+    tipsTxt.innerHTML='<div style="font-size:.8rem;line-height:1.9;color:var(--text);white-space:pre-wrap">'+txt+'</div>';
+  }
+  function showTipLoading(){
+    tipsTxt.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.8rem"><span class="dots"><span>•</span><span>•</span><span>•</span></span> Gerando dicas...</div>';
+  }
+  function showTipError(msg){
+    tipsTxt.innerHTML='<div style="font-size:.78rem;color:var(--muted)">'+msg+'</div>';
+  }
+
   if(cached){
-    // Já gerou antes — mostra direto
-    tipsBody.innerHTML='<div style="font-size:.8rem;line-height:1.8;color:var(--text);white-space:pre-wrap">'+cached+'</div>';
+    showTip(cached);
   } else {
-    // Loading state
-    tipsBody.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.8rem"><span class="dots"><span>•</span><span>•</span><span>•</span></span> Gerando dicas...</div>';
-    // Gera automaticamente
     const hasKey=!!localStorage.getItem('gemini_key');
-    if(hasKey){
+    if(!hasKey){
+      showTipError('Configure a Gemini API Key em ⚙️ para ver dicas.');
+    } else {
+      showTipLoading();
       const billsList=m.ab.map(function(b){ return b.name+' R$'+b.amount+(b.dueDay?' (dia '+b.dueDay+')':''); }).join(', ')||'nenhuma';
       const incList=m.ai.map(function(i){ return i.name+' R$'+i.amount+(i.receiveDay?' (dia '+i.receiveDay+')':''); }).join(', ')||'nenhuma';
-      const prompt='Analise o mês '+m.label+' e dê 3 dicas práticas e específicas:\nRendas: '+incList+'\nDespesas: '+billsList+'\nSaldo previsto: R$'+m.bank.toFixed(0)+'\nSuperávit: R$'+m.surplus.toFixed(0)+'\n\nDê dicas como: quando pagar cada conta, se há folga para adiantar parcelas, como organizar os pagamentos ao longo do mês. Seja direto e use valores reais. Máximo 5 linhas.';
-
+      const prompt='Analise o mês '+m.label+' e dê 3 dicas práticas:\nRendas: '+incList+'\nDespesas: '+billsList+'\nSaldo previsto: R$'+m.bank.toFixed(0)+'\nSuperávit: R$'+m.surplus.toFixed(0)+'\n\nDicas sobre quando pagar cada conta, folga para adiantar parcelas, como organizar os pagamentos. Direto, valores reais. Máximo 5 linhas.';
       const key=localStorage.getItem('gemini_key');
       fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          system_instruction:{parts:[{text:'Assistente financeiro pessoal brasileiro. Seja direto e prático. Use R$ para valores.'}]},
+          system_instruction:{parts:[{text:'Assistente financeiro pessoal brasileiro. Direto e prático. Use R$.'}]},
           contents:[{role:'user',parts:[{text:prompt}]}],
           generationConfig:{maxOutputTokens:300,temperature:0.7}
         })
@@ -785,25 +805,18 @@ function renderMonthDetail(){
           if(!S.tipsCache) S.tipsCache={};
           S.tipsCache[tipsKey]=tip;
           saveState();
-          tipsBody.innerHTML='<div style="font-size:.8rem;line-height:1.8;color:var(--text);white-space:pre-wrap">'+tip+'</div>';
+          showTip(tip);
+        } else {
+          showTipError('Não foi possível gerar dicas agora. Tente novamente.');
         }
-      }).catch(function(){
-        tipsBody.innerHTML='<div style="font-size:.78rem;color:var(--muted)">Não foi possível gerar dicas agora.</div>';
+      }).catch(function(e){
+        showTipError('Erro ao conectar. Verifique sua conexão.');
       });
-    } else {
-      tipsBody.innerHTML='<div style="font-size:.78rem;color:var(--muted)">Configure a Gemini API Key em ⚙️ para ver dicas.</div>';
     }
   }
 
-  // Botão pra regenerar
-  const regenBtn=btn('btn btn-o btn-sm','🔄 Gerar novas dicas',function(){
-    if(S.tipsCache) delete S.tipsCache[tipsKey];
-    saveState(); renderMonthDetail();
-  });
-  regenBtn.style.marginTop='.5rem';
-  tipsBody.appendChild(regenBtn);
   tipsCard.appendChild(tipsHdr); tipsCard.appendChild(tipsBody); scr.appendChild(tipsCard);
-  const sp=div(null); sp.style.height='1.5rem'; scr.appendChild(sp);
+  const sp=div(null); sp.style.height='3rem'; scr.appendChild(sp);
 }
 
 // ── AI ────────────────────────────────────────────────────────────────────────
